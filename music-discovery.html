@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- EN: Ensure proper scaling on mobile devices // IT: Assicura una corretta visualizzazione su dispositivi mobili -->
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Music Discovery App</title>
+  
+  <!-- EN: Include Bootstrap CSS for responsive design // IT: Includi Bootstrap CSS per un design responsive -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+  
+  <style>
+    /* EN: Basic styling for body and container 
+         IT: Stili di base per il body e il container */
+    body {
+      background-color: #f8f9fa;
+      padding-top: 40px;
+      padding-bottom: 80px; /* Reserve space for fixed footer / Riserva spazio per il footer fisso */
+    }
+    .container {
+      max-width: 1200px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    /* EN: Styling for the music cards grid // IT: Stile per la griglia delle card musicali */
+    #musicContainer {
+      margin-top: 20px;
+    }
+    .music-card {
+      margin-bottom: 30px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .music-card img {
+      object-fit: cover;
+      width: 100%;
+      height: 200px;
+    }
+    /* EN: Refresh button styling // IT: Stile per il pulsante Refresh */
+    #refreshBtn {
+      margin: 20px auto;
+      display: block;
+    }
+    /* EN: Fixed footer styling // IT: Stile per il footer fisso */
+    footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background-color: #343a40;
+      color: #fff;
+      text-align: center;
+      padding: 10px 0;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- EN: App Title // IT: Titolo dell'app -->
+    <h1>Music Discovery App</h1>
+    
+    <!-- EN: Refresh button to load new music data // IT: Pulsante Refresh per caricare nuovi dati musicali -->
+    <div class="text-center">
+      <button id="refreshBtn" class="btn btn-primary">
+        Refresh Music / Aggiorna Musica
+      </button>
+    </div>
+    
+    <!-- EN: Container where music cards will be dynamically inserted // IT: Contenitore dove verranno inserite dinamicamente le card musicali -->
+    <div id="musicContainer" class="row"></div>
+  </div>
+  
+  <!-- EN: Fixed Footer // IT: Footer fisso -->
+  <footer>
+    Music Discovery App - Bocaletto Luca
+  </footer>
+  
+  <!-- EN: Include Bootstrap Bundle JS (includes Popper) // IT: Includi Bootstrap Bundle JS (include Popper) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  
+  <script>
+    /***********************************************************************************************
+     * EN: Music Discovery App
+     * IT: Music Discovery App
+     * --------------------------------------------------------------------------------------------
+     * EN: This app randomly discovers music tracks by using Deezer's search API. A random letter
+     *     (a–z) is used as the query parameter so that a different set of tracks is returned on every
+     *     refresh. Each track is displayed in a Bootstrap card with the album cover, track title, artist
+     *     name, and an inline audio player that plays a 30‑second preview. This avoids navigating to another page.
+     *
+     * IT: Questa app permette di scoprire tracce musicali casuali utilizzando l'API di ricerca di Deezer.
+     *     Viene usata una lettera casuale (da a a z) come parametro di ricerca, in modo da ottenere un set di tracce
+     *     diverso ad ogni aggiornamento. Ogni traccia viene visualizzata in una card Bootstrap contenente la copertina,
+     *     il titolo della traccia, il nome dell'artista e un player audio inline per ascoltare un'anteprima di 30 secondi,
+     *     evitando di aprire un'altra pagina.
+     ***********************************************************************************************/
+    
+    // EN: CORS proxy URL for Deezer API // IT: URL del proxy CORS per l'API di Deezer
+    const proxyUrl = "https://thingproxy.freeboard.io/fetch/";
+    
+    // EN: Function to generate a random letter (a-z) // IT: Funzione per generare una lettera casuale (da a a z)
+    function getRandomLetter() {
+      return String.fromCharCode(97 + Math.floor(Math.random() * 26));
+    }
+    
+    // EN: Select DOM elements // IT: Seleziona gli elementi DOM
+    const musicContainer = document.getElementById("musicContainer");
+    const refreshBtn = document.getElementById("refreshBtn");
+    
+    /**
+     * EN: Fetch music data from Deezer's search API by using a random letter.
+     *     A timestamp is appended to avoid possible caching.
+     * IT: Scarica i dati musicali dall'API di ricerca di Deezer utilizzando una lettera casuale.
+     *     Viene aggiunto un timestamp per evitare il caching.
+     */
+    async function fetchMusicData() {
+      // Generate a random letter for the search query
+      const randomLetter = getRandomLetter();
+      // Build API URL (limit results to 12). Append a timestamp to avoid caching.
+      const apiEndpoint = `https://api.deezer.com/search?q=${randomLetter}&limit=12&_=${Date.now()}`;
+      try {
+        const response = await fetch(proxyUrl + apiEndpoint);
+        if (!response.ok) {
+          throw new Error("Network response not OK: " + response.status);
+        }
+        const data = await response.json();
+        return data;
+      } catch (error) {
+        console.error("Error fetching music data:", error);
+        return null;
+      }
+    }
+    
+    /**
+     * EN: Display fetched music tracks as responsive Bootstrap cards.
+     * IT: Visualizza le tracce musicali scaricate come card Bootstrap responsive.
+     * @param {Object} musicData - The music data returned from the API.
+     */
+    function displayMusic(musicData) {
+      // Clear the container
+      musicContainer.innerHTML = "";
+      
+      if (!musicData || !musicData.data || musicData.data.length === 0) {
+        musicContainer.innerHTML = "<p class='text-center text-danger'>No music data available. / Nessun dato musicale disponibile.</p>";
+        return;
+      }
+      
+      // Get the array of track objects
+      const tracks = musicData.data;
+      
+      tracks.forEach(track => {
+        // Create a column div for responsiveness
+        const colDiv = document.createElement("div");
+        colDiv.className = "col-12 col-md-6 col-lg-4";
+        
+        // Create a Bootstrap card element
+        const card = document.createElement("div");
+        card.className = "card music-card h-100";
+        
+        // Album cover image from track.album.cover_medium (if available)
+        if (track.album && track.album.cover_medium) {
+          const img = document.createElement("img");
+          img.src = track.album.cover_medium;
+          img.alt = track.title;
+          img.className = "card-img-top";
+          card.appendChild(img);
+        }
+        
+        // Create card body
+        const cardBody = document.createElement("div");
+        cardBody.className = "card-body d-flex flex-column";
+        
+        // Track title
+        const title = document.createElement("h5");
+        title.className = "card-title";
+        title.textContent = track.title;
+        cardBody.appendChild(title);
+        
+        // Artist name
+        const artist = document.createElement("p");
+        artist.className = "card-text text-muted";
+        artist.textContent = "By: " + (track.artist ? track.artist.name : "Unknown");
+        cardBody.appendChild(artist);
+        
+        // Create a "Listen Preview" button with inline audio player
+        if (track.preview) {
+          const previewBtn = document.createElement("button");
+          previewBtn.className = "btn btn-sm btn-primary mt-auto";
+          previewBtn.textContent = "Listen Preview";
+          
+          // Add event listener to toggle play/pause of the preview
+          previewBtn.addEventListener("click", () => {
+            // Try to find an existing audio element within the card body
+            let audio = cardBody.querySelector("audio");
+            if (audio) {
+              // If found, toggle play/pause
+              if (audio.paused) {
+                audio.play();
+                previewBtn.textContent = "Pause Preview";
+              } else {
+                audio.pause();
+                previewBtn.textContent = "Listen Preview";
+              }
+            } else {
+              // If not found, create a new audio element
+              audio = document.createElement("audio");
+              audio.controls = true;
+              audio.src = track.preview;
+              // When the preview ends, reset the button text
+              audio.addEventListener("ended", () => {
+                previewBtn.textContent = "Listen Preview";
+              });
+              // Append the audio player below the button
+              cardBody.appendChild(audio);
+              previewBtn.textContent = "Pause Preview";
+            }
+          });
+          cardBody.appendChild(previewBtn);
+        }
+        
+        card.appendChild(cardBody);
+        colDiv.appendChild(card);
+        musicContainer.appendChild(colDiv);
+      });
+    }
+    
+    /**
+     * EN: Load music data and display it.
+     * IT: Carica i dati musicali e visualizzali.
+     */
+    async function loadMusic() {
+      musicContainer.innerHTML = "<p class='text-center'>Loading music data...</p>";
+      const musicData = await fetchMusicData();
+      if (musicData) {
+        displayMusic(musicData);
+      } else {
+        musicContainer.innerHTML = "<p class='text-center text-danger'>Error fetching music data. Please try again later. / Errore durante il caricamento dei dati musicali, riprova più tardi.</p>";
+      }
+    }
+    
+    // EN: Event listener for the refresh button // IT: Gestore dell'evento per il pulsante Refresh
+    refreshBtn.addEventListener("click", loadMusic);
+    
+    // EN: Load music data on initial page load // IT: Carica i dati musicali al caricamento iniziale della pagina
+    loadMusic();
+  </script>
+</body>
+</html>
